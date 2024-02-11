@@ -45,14 +45,23 @@ int main(void)
 
     UINT ret = _lx_nor_flash_open(&nor_mem_desc, "VOL0:", flash_driver_init);
 
+    _lx_nor_flash_sector_write(&nor_mem_desc, 0, write_log_block);
+    _lx_nor_flash_sector_read(&nor_mem_desc, 0, read_log_block);
 
+//    _lx_nor_flash_defragment(&nor_mem_desc);
+
+
+
+    while(1);
     /* Measure LevelX ready time */
     uint32_t start_time = HAL_GetTick();
 
-    for (uint32_t blk_rewrite_cnt = 0; blk_rewrite_cnt < 100; blk_rewrite_cnt++)
+    for (uint32_t i = 0; i < 100; i++)
     {
-        _lx_nor_flash_sector_write(&nor_mem_desc, blk_rewrite_cnt, write_log_block);
+        ret = _lx_nor_flash_sector_write(&nor_mem_desc, i, write_log_block);
     }
+
+
     uint32_t stop_time = HAL_GetTick() - start_time;
 
 

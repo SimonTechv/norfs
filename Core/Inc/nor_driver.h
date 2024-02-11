@@ -25,8 +25,8 @@
 #define N25_SUBSECTOR_COUNT                  4096
 #define N25_SECTOR_SIZE                      65536
 #define N25_MEMORY_SIZE                      N25_SUBSECTOR_COUNT * N25_SUBSECTOR_SIZE
-#define N25_BASE_ADDR                        (ULONG*)0x00000000
-#define N25_HIGH_ADDR                        (ULONG*)0x00FFFFFF
+#define N25_BASE_ADDR                        0x00000000
+#define N25_HIGH_ADDR                        0x00FFFFFF
 #define N25_LOW_SS_IDX                       0
 #define N25_HIGH_SS_IDX                      4095
 #define N25_PAGE_PROG_SIZE                   256
@@ -34,10 +34,14 @@
 /* Driver block and sector size matched with phy flash memory block and size*/
 #define DRIVER_LOG_SECTOR_SIZE               512
 #define DRIVER_PHY_BLOCK_SIZE                N25_SUBSECTOR_SIZE
-#define DRIVER_WORDS_PER_BLOCK               N25_SUBSECTOR_SIZE / sizeof(ULONG)
+
+#define DRIVER_BLOCK_COUNT                   N25_SUBSECTOR_COUNT / 2 / 2 / 2 / 2
+
 #define DRIVER_BASE_OFFSET_MEM               N25_BASE_ADDR
-#define DRIVER_BLOCK_COUNT                   N25_SUBSECTOR_COUNT - 1
+
 #define DRIVER_WORDS_PER_SECTOR              DRIVER_LOG_SECTOR_SIZE / sizeof(ULONG)
+#define DRIVER_WORDS_PER_BLOCK               N25_SUBSECTOR_SIZE / sizeof(ULONG)
+#define DRIVER_WORDS_PER_PP_BLOCK            DRIVER_WORDS_PER_SECTOR / 2
 
 #define DRIVER_LOWER_ADDRESS_FLASH_MEMORY    N25_BASE_ADDR
 #define DRIVER_HIGHER_ADDRESS_FLASH_MEMORY   N25_HIGH_ADDR
@@ -49,7 +53,7 @@
 /* Default timeout (ms) */
 #define N25Q128A_BULK_ERASE_MAX_TIME         480000
 #define N25Q128A_SECTOR_ERASE_MAX_TIME       3000
-#define N25Q128A_SUBSECTOR_ERASE_MAX_TIME    800
+#define N25Q128A_SUBSECTOR_ERASE_MAX_TIME    8000
 
 #define N25Q128A_DEFAULT_TIMEOUT             1000
 
