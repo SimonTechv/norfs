@@ -41,14 +41,20 @@ int main(void)
     uint8_t read_log_block[512]  = {0};
 
     // Fill test block with pattern
-    memset(testbuf, 0xDA, 128);
+    memset(write_log_block, 0xDA, 128);
+
+    UINT ret = _lx_nor_flash_open(&nor_mem_desc, "VOL0:", flash_driver_init);
+
 
     /* Measure LevelX ready time */
     uint32_t start_time = HAL_GetTick();
 
-    UINT ret = _lx_nor_flash_open(&nor_mem_desc, "VOL0:", flash_driver_init);
-
+    for (uint32_t blk_rewrite_cnt = 0; blk_rewrite_cnt < 100; blk_rewrite_cnt++)
+    {
+        _lx_nor_flash_sector_write(&nor_mem_desc, blk_rewrite_cnt, write_log_block);
+    }
     uint32_t stop_time = HAL_GetTick() - start_time;
+
 
     HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);

@@ -55,7 +55,7 @@ UINT _driver_nor_flash_system_error(UINT error_code);
 UINT flash_driver_init(LX_NOR_FLASH *instance)
 {
     // Setting up driver params
-    instance->lx_nor_flash_base_address     = DRIVER_BASE_OFFSET_MEM;
+    instance->lx_nor_flash_base_address     = (ULONG *)DRIVER_BASE_OFFSET_MEM;
     instance->lx_nor_flash_total_blocks     = DRIVER_BLOCK_COUNT;
     instance->lx_nor_flash_words_per_block  = DRIVER_WORDS_PER_BLOCK;
 
@@ -94,6 +94,14 @@ UINT flash_driver_init(LX_NOR_FLASH *instance)
  */
 UINT _driver_nor_flash_read(ULONG *flash_address, ULONG *destination, ULONG words)
 {
+
+    // Is address valid ?
+    if (flash_address > DRIVER_HIGHER_ADDRESS_FLASH_MEMORY || flash_address < DRIVER_LOWER_ADDRESS_FLASH_MEMORY)
+    {
+        // IO error !
+        _driver_nor_flash_system_error(LX_ERROR);
+    }
+
     QSPI_CommandTypeDef cmd;
 
     /* Command params struct fill */
@@ -108,7 +116,7 @@ UINT _driver_nor_flash_read(ULONG *flash_address, ULONG *destination, ULONG word
 
     /* Read data */
     cmd.Instruction = QUAD_INOUT_FAST_READ_CMD;
-    cmd.Address     = flash_address;
+    cmd.Address     = (ULONG)flash_address;
     cmd.DummyCycles = N25Q128A_VCR_NB_DUMMY >> 4;
     cmd.NbData = words * sizeof(ULONG); // Data transfer size in bytes
 
@@ -151,20 +159,28 @@ UINT _driver_nor_flash_system_error(UINT error_code)
  * @param words   : Buffer size
  * @return        : Status of operation
  */
-UINT _driver_nor_flash_write(ULONG *address, ULONG *source, ULONG words)
+UINT _driver_nor_flash_write(ULONG *flash_address, ULONG *source, ULONG words)
 {
+
+    // Is address valid ?
+    if (flash_address > DRIVER_HIGHER_ADDRESS_FLASH_MEMORY || flash_address < DRIVER_LOWER_ADDRESS_FLASH_MEMORY)
+    {
+        // IO error !
+        _driver_nor_flash_system_error(LX_ERROR);
+    }
+
     ULONG words_per_prog_page = (N25_PAGE_PROG_SIZE / sizeof(ULONG));
 
     // Program by 256 byte page (in terms of levelx : 64 (4-byte) WORD)
     while (words >= words_per_prog_page)
     {
-        if (_driver_nor_flash_page_prog(address, (UCHAR *)source, N25_PAGE_PROG_SIZE) != LX_SUCCESS)
+        if (_driver_nor_flash_page_prog((ULONG)flash_address, (UCHAR *)source, N25_PAGE_PROG_SIZE) != LX_SUCCESS)
         {
             return LX_ERROR;
         }
 
         // Increase address and source buffer pointer
-        address  += N25_PAGE_PROG_SIZE;
+        flash_address  += N25_PAGE_PROG_SIZE;
         source    += words_per_prog_page;
         words     -= words_per_prog_page;
     }
@@ -172,7 +188,7 @@ UINT _driver_nor_flash_write(ULONG *address, ULONG *source, ULONG words)
     // If data size unaligned by page prog size (write residue bytes)
     if (words != 0)
     {
-        if (_driver_nor_flash_page_prog(address,  (UCHAR *)source, words * sizeof(ULONG)) != LX_SUCCESS)
+        if (_driver_nor_flash_page_prog((ULONG)flash_address,  (UCHAR *)source, words * sizeof(ULONG)) != LX_SUCCESS)
         {
             return LX_ERROR;
         }
@@ -249,6 +265,14 @@ UINT _driver_nor_flash_page_prog(ULONG address, UCHAR* data, ULONG size)
  */
 UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
 {
+
+    // Is block valid ?
+    if (block > DRIVER_HIGH_BLK_IDX || block < DRIVER_LOW_BLK_IDX)
+    {
+        // IO error !
+        _driver_nor_flash_system_error(LX_ERROR);
+    }
+
     UINT ret = LX_SUCCESS;
     QSPI_CommandTypeDef cmd;
 
@@ -274,7 +298,7 @@ UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
     for (ULONG blk = 0; blk < erase_count; blk++)
     {
         // Calculate block address
-        cmd.Address = DRIVER_BASE_OFFSET_MEM + (block + blk) * DRIVER_PHY_BLOCK_SIZE;
+        cmd.Address = (ULONG)DRIVER_BASE_OFFSET_MEM + (block + blk) * DRIVER_PHY_BLOCK_SIZE;
         // Send ERASE command
         if (HAL_QSPI_Command(&QSPIHandle, &cmd, N25Q128A_DEFAULT_TIMEOUT) != HAL_OK)
         {
@@ -455,7 +479,7 @@ UINT _driver_nor_flash_write_enable()
     cfg.Mask            = 0x02;
     cfg.MatchMode       = QSPI_MATCH_MODE_AND;
     cfg.StatusBytesSize = 1;
-    cfg.Interval        = 0x10;
+    cfg.Interval        = 0x1;
     cfg.AutomaticStop   = QSPI_AUTOMATIC_STOP_ENABLE;
 
     if (HAL_QSPI_AutoPolling(&QSPIHandle, &cmd, &cfg, N25Q128A_DEFAULT_TIMEOUT) != HAL_OK)
@@ -484,8 +508,8 @@ void _driver_test_write()
  */
 UINT _driver_nor_flash_erased_verify(ULONG block)
 {
-    uint32_t block_start_addr = DRIVER_BASE_OFFSET_MEM + block * DRIVER_PHY_BLOCK_SIZE;
-    uint32_t block_stop_addr = block_start_addr + DRIVER_PHY_BLOCK_SIZE;
+    ULONG* block_start_addr = DRIVER_BASE_OFFSET_MEM + block * DRIVER_PHY_BLOCK_SIZE;
+    ULONG*  block_stop_addr = block_start_addr + DRIVER_PHY_BLOCK_SIZE;
 
     // Partially verify erased block
     for (; block_start_addr < block_stop_addr; block_start_addr += DRIVER_LOG_SECTOR_SIZE)
