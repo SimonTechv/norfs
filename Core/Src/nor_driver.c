@@ -16,9 +16,9 @@ QSPI_HandleTypeDef QSPIHandle;
 UCHAR __IO TxCplt, RxCplt, CmdCplt = 0;
 
 // ULONG size aligned buffer for driver sector access
-__attribute__((aligned(4))) uint8_t sector_buffer[DRIVER_LOG_SECTOR_SIZE] = {0};
+__attribute__((aligned(4))) ULONG sector_buffer[LX_NOR_SECTOR_SIZE] = {0};
 
-__attribute__((aligned(4))) uint8_t verify_sector_buffer[DRIVER_LOG_SECTOR_SIZE] = {0};
+__attribute__((aligned(4))) ULONG verify_sector_buffer[LX_NOR_SECTOR_SIZE] = {0};
 
 
 /* Тестовые буферы по 4096 байт */
@@ -38,7 +38,7 @@ UINT _driver_nor_flash_wait_eop(ULONG);
 UINT _driver_nor_flash_write_enable(void);
 UINT _driver_nor_flash_configure(void);
 UINT _driver_nor_flash_page_prog(ULONG* address, ULONG* data, ULONG words);
-UINT _driver_nor_flash_bulk_erase(void);
+UINT _driver_test_block(ULONG block);
 
 UINT compare_buffers(uint8_t *dst, uint8_t *src, uint32_t size);
 
@@ -65,7 +65,7 @@ UINT flash_driver_init(LX_NOR_FLASH *instance)
     // Setting up driver params
     instance->lx_nor_flash_base_address     = (ULONG *)DRIVER_BASE_OFFSET_MEM;
     instance->lx_nor_flash_total_blocks     = DRIVER_BLOCK_COUNT;
-    instance->lx_nor_flash_words_per_block  = DRIVER_WORDS_PER_BLOCK;
+    instance->lx_nor_flash_words_per_block  = DRIVER_BLOCK_SIZE / sizeof(ULONG);
 
     // RAM buffer 512 bytes aligned by 4 bytes
     instance->lx_nor_flash_sector_buffer   = (ULONG*)&sector_buffer[0];
@@ -89,7 +89,6 @@ UINT flash_driver_init(LX_NOR_FLASH *instance)
         return LX_ERROR;
     }
 
-//    _driver_test_write();
 
     return LX_SUCCESS;
 }
@@ -106,24 +105,30 @@ UINT flash_driver_init(LX_NOR_FLASH *instance)
 UINT _driver_nor_flash_write(ULONG *flash_address, ULONG *source, ULONG words)
 {
     // Is address valid ?
-    if (flash_address > DRIVER_HIGHER_ADDRESS_FLASH_MEMORY || flash_address < DRIVER_LOWER_ADDRESS_FLASH_MEMORY)
+    if ((ULONG)flash_address > DRIVER_HIGHER_ADDRESS_FLASH_MEMORY || (ULONG)flash_address < DRIVER_LOWER_ADDRESS_FLASH_MEMORY)
     {
         // IO error !
         _driver_nor_flash_system_error(LX_ERROR);
     }
+    else
+    {
+        // Extract offset
+        flash_address = flash_address - DRIVER_BASE_OFFSET_MEM / sizeof(ULONG);
+
+    }
 
     // Program by 256 byte page (in terms of levelx : 64 (4-byte) WORD)
-    while (words >= DRIVER_WORDS_PER_PP_BLOCK)
+    while (words >= N25_PAGE_PROG_SIZE / sizeof(ULONG))
     {
-        if (_driver_nor_flash_page_prog(flash_address, source, DRIVER_WORDS_PER_PP_BLOCK) != LX_SUCCESS)
+        if (_driver_nor_flash_page_prog(flash_address, source, N25_PAGE_PROG_SIZE / sizeof(ULONG)) != LX_SUCCESS)
         {
             return LX_ERROR;
         }
 
         // Increase address and source buffer pointer
-        flash_address  += DRIVER_WORDS_PER_PP_BLOCK;
-        source         += DRIVER_WORDS_PER_PP_BLOCK;
-        words          -= DRIVER_WORDS_PER_PP_BLOCK;
+        flash_address  += N25_PAGE_PROG_SIZE / sizeof(ULONG);
+        source         += N25_PAGE_PROG_SIZE / sizeof(ULONG);
+        words          -= N25_PAGE_PROG_SIZE / sizeof(ULONG);
     }
 
     // If data size unaligned by page prog size (write residue bytes)
@@ -151,10 +156,15 @@ UINT _driver_nor_flash_read(ULONG *flash_address, ULONG *destination, ULONG word
 {
 
     // Is address valid ?
-    if (flash_address > DRIVER_HIGHER_ADDRESS_FLASH_MEMORY || flash_address < DRIVER_LOWER_ADDRESS_FLASH_MEMORY)
+    if ((ULONG)flash_address > DRIVER_HIGHER_ADDRESS_FLASH_MEMORY || (ULONG)flash_address < DRIVER_LOWER_ADDRESS_FLASH_MEMORY)
     {
         // IO error !
         _driver_nor_flash_system_error(LX_ERROR);
+    }
+    else
+    {
+        // Extract offset
+        flash_address = flash_address - DRIVER_BASE_OFFSET_MEM / sizeof(ULONG);
     }
 
     QSPI_CommandTypeDef cmd;
@@ -202,7 +212,6 @@ UINT _driver_nor_flash_read(ULONG *flash_address, ULONG *destination, ULONG word
  */
 UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
 {
-
     // Is block valid ?
     if (block > DRIVER_HIGH_BLK_IDX || block < DRIVER_LOW_BLK_IDX)
     {
@@ -234,7 +243,7 @@ UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
         }
 
         // Calculate block address
-        cmd.Address = (ULONG)DRIVER_BASE_OFFSET_MEM + (block + blk) * DRIVER_PHY_BLOCK_SIZE;
+        cmd.Address = (block + blk) * DRIVER_BLOCK_SIZE;
 
         // Send ERASE command
         if (HAL_QSPI_Command(&QSPIHandle, &cmd, N25Q128A_DEFAULT_TIMEOUT) != HAL_OK)
@@ -249,6 +258,8 @@ UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
         }
     }
 
+
+
     return LX_SUCCESS;
 }
 
@@ -262,22 +273,22 @@ UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
 UINT _driver_nor_flash_erased_verify(ULONG block)
 {
     // Block start address calculate
-    ULONG block_start_addr = DRIVER_BASE_OFFSET_MEM + block * DRIVER_PHY_BLOCK_SIZE;
-    ULONG block_end_addr = block_start_addr + DRIVER_PHY_BLOCK_SIZE;
+    ULONG block_start_addr = DRIVER_BASE_OFFSET_MEM + block * DRIVER_BLOCK_SIZE;
+    ULONG block_end_addr = block_start_addr + DRIVER_BLOCK_SIZE;
 
     // Partially verify erased block
-    for (; block_start_addr < block_end_addr; block_start_addr += DRIVER_LOG_SECTOR_SIZE)
+    for (; block_start_addr < block_end_addr; block_start_addr += DRIVER_BLOCK_SIZE / sizeof(ULONG))
     {
         // Read 512 byte part of block
-        if (_driver_nor_flash_read((ULONG*)block_start_addr, (ULONG *)verify_sector_buffer, DRIVER_WORDS_PER_SECTOR) != LX_SUCCESS)
+        if (_driver_nor_flash_read((ULONG*)block_start_addr, (ULONG *)verify_sector_buffer, LX_NOR_SECTOR_SIZE) != LX_SUCCESS)
         {
             return LX_ERROR;
         }
 
         // Verify erased block
-        for (ULONG i = 0; i < DRIVER_LOG_SECTOR_SIZE; i++)
+        for (ULONG i = 0; i < LX_NOR_SECTOR_SIZE; i++)
         {
-            if (verify_sector_buffer[i] != 0xFF)
+            if (verify_sector_buffer[i] != 0xFFFFFFFF)
             {
                 // Sector erased failed!
                  return LX_ERROR;
@@ -298,6 +309,8 @@ UINT _driver_nor_flash_erased_verify(ULONG block)
 UINT _driver_nor_flash_system_error(UINT error_code)
 {
     __NOP();
+
+    printf("ERROR!!!");
 
 //    _driver_nor_flash_bulk_erase();
 
@@ -365,6 +378,7 @@ UINT _driver_nor_flash_page_prog(ULONG* address, ULONG* data, ULONG words)
         return LX_ERROR;
     }
 
+
     return LX_SUCCESS;
 }
 
@@ -379,7 +393,7 @@ UINT _driver_qspi_init()
     QSPIHandle.Instance = QUADSPI;
     HAL_QSPI_DeInit(&QSPIHandle);
 
-    QSPIHandle.Init.ClockPrescaler = 4;
+    QSPIHandle.Init.ClockPrescaler = 0;
     QSPIHandle.Init.FifoThreshold = 4;
     QSPIHandle.Init.SampleShifting = QSPI_SAMPLE_SHIFTING_HALFCYCLE;
     QSPIHandle.Init.FlashSize = QSPI_FLASH_SIZE;
@@ -606,11 +620,19 @@ UINT _driver_test_block(ULONG block)
         return 1;
     }
 
+    /* Measure LevelX perfomance write 500 * 512 blocks */
+    uint32_t start_time = HAL_GetTick();
+
+
     // Заполняем блок значениями
     if (_driver_nor_flash_write(block * 4096, databuf_w, 1024) != LX_SUCCESS)
     {
         return 2;
     }
+
+    uint32_t stop_time = HAL_GetTick() - start_time;
+
+    __NOP();
 
     // Вычитываем значения
     if (_driver_nor_flash_read(block * 4096, databuf_r, 1024) != LX_SUCCESS)

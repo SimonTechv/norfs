@@ -93,18 +93,18 @@
 /* By default this value is 8, which represents a maximum of 8 sectors that 
    can be cached in a NOR instance.
 */
-/*
+
 #define LX_NOR_EXTENDED_CACHE_SIZE   8 
-*/
+
 
 
 /* By default this value is 16 and defines the logical sector mapping cache size. 
    Large values improve performance, but cost memory. The minimum size is 8 and all 
    values must be a power of 2.
 */
-/*
-#define LX_NOR_SECTOR_MAPPING_CACHE_SIZE   16
-*/
+
+#define LX_NOR_SECTOR_MAPPING_CACHE_SIZE   64
+
 
 /* Defined, this makes LevelX thread-safe by using a ThreadX mutex object 
    throughout the API.

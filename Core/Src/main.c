@@ -18,6 +18,8 @@ UART_HandleTypeDef huart2;
 // NOR QSPI memory desc
 LX_NOR_FLASH nor_mem_desc = {0};
 
+ULONG levelx_cache[128 * 128] = {0};
+
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
@@ -34,6 +36,22 @@ int main(void)
     MX_GPIO_Init();
     MX_USART2_UART_Init();
 
+    GPIO_InitTypeDef joy_select =
+    {
+            .Mode       = GPIO_MODE_INPUT,
+            .Pin        = GPIO_PIN_0,
+            .Pull       = GPIO_PULLDOWN,
+    };
+
+    // Setting up formatting NOR flash
+    HAL_GPIO_Init(GPIOA, &joy_select);
+
+    if (HAL_GPIO_ReadPin(JOY_SEL_GPIO_Port, JOY_SEL_Pin) == GPIO_PIN_SET)
+    {
+        flash_driver_init(&nor_mem_desc);
+        _driver_nor_flash_bulk_erase();
+    }
+
     // LevelX module initialize
     _lx_nor_flash_initialize();
 
@@ -41,28 +59,27 @@ int main(void)
     uint8_t read_log_block[512]  = {0};
 
     // Fill test block with pattern
-    memset(write_log_block, 0xDA, 128);
+    memset(write_log_block, 0xAB, 128);
+
+    /* Measure LevelX perfomance write 500 * 512 blocks */
+    uint32_t start_time = HAL_GetTick();
 
     UINT ret = _lx_nor_flash_open(&nor_mem_desc, "VOL0:", flash_driver_init);
 
-    _lx_nor_flash_sector_write(&nor_mem_desc, 0, write_log_block);
-    _lx_nor_flash_sector_read(&nor_mem_desc, 0, read_log_block);
+    _lx_nor_flash_extended_cache_enable(&nor_mem_desc, &levelx_cache[0], 128 * 4096);
 
-//    _lx_nor_flash_defragment(&nor_mem_desc);
-
+    uint32_t stop_time = HAL_GetTick() - start_time;
 
 
-    while(1);
-    /* Measure LevelX ready time */
-    uint32_t start_time = HAL_GetTick();
-
-    for (uint32_t i = 0; i < 100; i++)
+    for(uint32_t a = 0; a < 10; a++)
+    for (uint32_t i = 0; i < 1500; i++)
     {
         ret = _lx_nor_flash_sector_write(&nor_mem_desc, i, write_log_block);
     }
 
 
-    uint32_t stop_time = HAL_GetTick() - start_time;
+
+    ret = _lx_nor_flash_sector_read(&nor_mem_desc, 5, read_log_block);
 
 
     HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
