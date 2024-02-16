@@ -37,7 +37,7 @@ UINT _driver_qspi_init(void);
 UINT _driver_nor_flash_wait_eop(ULONG);
 UINT _driver_nor_flash_write_enable(void);
 UINT _driver_nor_flash_configure(void);
-UINT _driver_nor_flash_page_prog(ULONG* address, ULONG* data, ULONG words);
+UINT _driver_nor_flash_page_prog(ULONG address, UCHAR* data, ULONG size);
 UINT _driver_test_block(ULONG block);
 
 UINT compare_buffers(uint8_t *dst, uint8_t *src, uint32_t size);
@@ -89,6 +89,8 @@ UINT flash_driver_init(LX_NOR_FLASH *instance)
         return LX_ERROR;
     }
 
+    _driver_test_write();
+
 
     return LX_SUCCESS;
 }
@@ -107,38 +109,60 @@ UINT _driver_nor_flash_write(ULONG *flash_address, ULONG *source, ULONG words)
     // Is address valid ?
     if ((ULONG)flash_address > DRIVER_HIGHER_ADDRESS_FLASH_MEMORY || (ULONG)flash_address < DRIVER_LOWER_ADDRESS_FLASH_MEMORY)
     {
-        // IO error !
-        _driver_nor_flash_system_error(LX_ERROR);
+        _driver_nor_flash_system_error(LX_ERROR); // IO error !
     }
     else
     {
-        // Extract offset
-        flash_address = flash_address - DRIVER_BASE_OFFSET_MEM / sizeof(ULONG);
-
+        flash_address = flash_address - DRIVER_BASE_OFFSET_MEM / sizeof(ULONG); // Удаляем фейковый оффсет адреса памяти
     }
 
-    // Program by 256 byte page (in terms of levelx : 64 (4-byte) WORD)
-    while (words >= N25_PAGE_PROG_SIZE / sizeof(ULONG))
+    ULONG address = (ULONG)flash_address; // Extract address from pointer
+    ULONG size = words * sizeof(ULONG);   // Calculate size in bytes
+    UCHAR *data = (UCHAR*)source;         // Byte pointer to source data
+
+    // Остаток байт вмещающихся до границы программируемой страницы
+    ULONG temp_prog_size = N25_PAGE_PROG_SIZE - (address % N25_PAGE_PROG_SIZE);
+    ULONG temp_prog_addr = address;        // Счетчик адреса
+    ULONG end_address    = address + size; // Адрес байта следующего за последним байтом данных
+
+    // Если свободного места больше чем у нас имеется данных для записи
+    if (size < temp_prog_size)
     {
-        if (_driver_nor_flash_page_prog(flash_address, source, N25_PAGE_PROG_SIZE / sizeof(ULONG)) != LX_SUCCESS)
+        /*
+         * Когда размер программируемых данных меньше пустой области до конца
+         * программируемой странице, функция программирования страницы будет
+         * вызвана один раз только для программирования этого кусочка данных.
+         * Поэтому программируемый размер данных составит ровно столько, сколько
+         * передано в функцию.
+         */
+        temp_prog_size = size;
+    }
+
+    do
+    {
+        // Выполняем программирование с учетом полученного выравнивающего количества данных для первой страницы
+        if (_driver_nor_flash_page_prog(temp_prog_addr, data, temp_prog_size) != LX_SUCCESS)
         {
             return LX_ERROR;
         }
 
-        // Increase address and source buffer pointer
-        flash_address  += N25_PAGE_PROG_SIZE / sizeof(ULONG);
-        source         += N25_PAGE_PROG_SIZE / sizeof(ULONG);
-        words          -= N25_PAGE_PROG_SIZE / sizeof(ULONG);
-    }
+        // Увеличиваем счетчики
+        temp_prog_addr += temp_prog_size;
+        data           += temp_prog_size;
 
-    // If data size unaligned by page prog size (write residue bytes)
-    if (words != 0)
-    {
-        if (_driver_nor_flash_page_prog(flash_address, source, words) != LX_SUCCESS)
+        // Если до конца памяти осталось большем чем размер программируемой страницы
+        if ((temp_prog_addr + N25_PAGE_PROG_SIZE) > end_address)
         {
-            return LX_ERROR;
+            // Последний чанк есть разница между адресами конца и текущего
+            temp_prog_size = end_address - temp_prog_addr;
+        }
+        else
+        {
+            // В противном случае размер равен полному блоку программируемой страницы
+            temp_prog_size = N25_PAGE_PROG_SIZE;
         }
     }
+    while(temp_prog_addr < end_address);
 
     return LX_SUCCESS;
 }
@@ -332,7 +356,7 @@ UINT _driver_nor_flash_system_error(UINT error_code)
  * @param size:    Buffer size (in bytes)
  * @return
  */
-UINT _driver_nor_flash_page_prog(ULONG* address, ULONG* data, ULONG words)
+UINT _driver_nor_flash_page_prog(ULONG address, UCHAR* data, ULONG size)
 {
     QSPI_CommandTypeDef cmd;
 
@@ -354,9 +378,9 @@ UINT _driver_nor_flash_page_prog(ULONG* address, ULONG* data, ULONG words)
 
     /* Write data command*/
     cmd.Instruction = EXT_QUAD_IN_FAST_PROG_CMD;
-    cmd.Address     = (ULONG)address;
+    cmd.Address     = address;
     cmd.DummyCycles = 0;
-    cmd.NbData      = words * sizeof(ULONG); // Data transfer size in bytes
+    cmd.NbData      = size; // Data transfer size in bytes
 
     if (HAL_QSPI_Command(&QSPIHandle, &cmd, N25Q128A_DEFAULT_TIMEOUT) != HAL_OK)
     {
@@ -377,7 +401,6 @@ UINT _driver_nor_flash_page_prog(ULONG* address, ULONG* data, ULONG words)
     {
         return LX_ERROR;
     }
-
 
     return LX_SUCCESS;
 }
@@ -586,7 +609,7 @@ UINT _driver_nor_flash_write_enable()
     cfg.Mask            = 0x02;
     cfg.MatchMode       = QSPI_MATCH_MODE_AND;
     cfg.StatusBytesSize = 1;
-    cfg.Interval        = 0x1;
+    cfg.Interval        = 0x10;
     cfg.AutomaticStop   = QSPI_AUTOMATIC_STOP_ENABLE;
 
     if (HAL_QSPI_AutoPolling(&QSPIHandle, &cmd, &cfg, N25Q128A_DEFAULT_TIMEOUT) != HAL_OK)
@@ -677,21 +700,13 @@ UINT compare_buffers(uint8_t *dst, uint8_t *src, uint32_t size)
  */
 void _driver_test_write()
 {
+    uint32_t *addr = 0x90000000 + 100;
 
-    for (uint32_t o = 0; o < 4096; o++)
-    {
-        if(_driver_test_block(o) != 0)
-        {
-            printf("Block: FAILED! %d\r\n", o);
-        }
-        else
-        {
+    uint8_t data[256] = {0};
 
-            printf("Block: PASSED! %d\r\n", o);
-        }
-    }
+    memset(data, 0xDA, 128);
 
-    printf("TESTS: PASSED!\r\n");
+    _driver_nor_flash_write(addr, data , 64);
 
     while(1);
 }
@@ -712,4 +727,16 @@ void HAL_QSPI_CmdCpltCallback(QSPI_HandleTypeDef *hqspi)
 {
     CmdCplt = 1;
 }
+
+//                // Если в следующей итерации цикла мы выйдем за пределы программируемой памяти
+//                if ((temp_prog_addr + N25_PAGE_PROG_SIZE) > end_address)
+//                {
+//                    // Дописываем остаток байт в следующей команде
+//                    temp_prog_size = end_address - temp_prog_addr;
+//                }
+//                else
+//                {
+//                    // Иначе в следующей итерации программируем полную страницу
+//                    temp_prog_size = N25_PAGE_PROG_SIZE;
+//                }
 
