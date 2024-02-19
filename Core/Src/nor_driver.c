@@ -89,9 +89,6 @@ UINT flash_driver_init(LX_NOR_FLASH *instance)
         return LX_ERROR;
     }
 
-    _driver_test_write();
-
-
     return LX_SUCCESS;
 }
 
@@ -214,6 +211,8 @@ UINT _driver_nor_flash_read(ULONG *flash_address, ULONG *destination, ULONG word
         return LX_ERROR;
     }
 
+    MODIFY_REG(QSPIHandle.Instance->DCR, QUADSPI_DCR_CSHT, QSPI_CS_HIGH_TIME_2_CYCLE);
+
     if (HAL_QSPI_Receive_DMA(&QSPIHandle, (uint8_t*)destination) != HAL_OK)
     {
         return LX_ERROR;
@@ -222,6 +221,9 @@ UINT _driver_nor_flash_read(ULONG *flash_address, ULONG *destination, ULONG word
     // Waiting EOR
     while(RxCplt == 0);
     RxCplt = 0;
+
+    /* Restore S# timing for nonRead commands */
+    MODIFY_REG(QSPIHandle.Instance->DCR, QUADSPI_DCR_CSHT, QSPI_CS_HIGH_TIME_5_CYCLE);
 
     return LX_SUCCESS;
 }
@@ -282,8 +284,6 @@ UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
         }
     }
 
-
-
     return LX_SUCCESS;
 }
 
@@ -297,28 +297,31 @@ UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
 UINT _driver_nor_flash_erased_verify(ULONG block)
 {
     // Block start address calculate
-    ULONG block_start_addr = DRIVER_BASE_OFFSET_MEM + block * DRIVER_BLOCK_SIZE;
-    ULONG block_end_addr = block_start_addr + DRIVER_BLOCK_SIZE;
+    ULONG curr_addr = block * DRIVER_BLOCK_SIZE;
+    ULONG end_addr  = curr_addr + DRIVER_BLOCK_SIZE;
 
-    // Partially verify erased block
-    for (; block_start_addr < block_end_addr; block_start_addr += DRIVER_BLOCK_SIZE / sizeof(ULONG))
+    do
     {
-        // Read 512 byte part of block
-        if (_driver_nor_flash_read((ULONG*)block_start_addr, (ULONG *)verify_sector_buffer, LX_NOR_SECTOR_SIZE) != LX_SUCCESS)
+        // Считываем первый 512 байтовую часть подсектора
+        if (_driver_nor_flash_read((ULONG*)(curr_addr + DRIVER_BASE_OFFSET_MEM), verify_sector_buffer, LX_NOR_SECTOR_SIZE) != LX_SUCCESS)
         {
             return LX_ERROR;
         }
 
-        // Verify erased block
+        // Проверяем что весь сектор очищен
         for (ULONG i = 0; i < LX_NOR_SECTOR_SIZE; i++)
         {
             if (verify_sector_buffer[i] != 0xFFFFFFFF)
             {
-                // Sector erased failed!
-                 return LX_ERROR;
+                return LX_ERROR;
             }
         }
+
+        // Переходим к следующему сектору
+        curr_addr += (LX_NOR_SECTOR_SIZE * sizeof(ULONG));
     }
+    while(curr_addr < end_addr);
+
 
     return LX_SUCCESS;
 }
@@ -416,8 +419,8 @@ UINT _driver_qspi_init()
     QSPIHandle.Instance = QUADSPI;
     HAL_QSPI_DeInit(&QSPIHandle);
 
-    QSPIHandle.Init.ClockPrescaler = 0;
-    QSPIHandle.Init.FifoThreshold = 4;
+    QSPIHandle.Init.ClockPrescaler = 1;
+    QSPIHandle.Init.FifoThreshold = 1;
     QSPIHandle.Init.SampleShifting = QSPI_SAMPLE_SHIFTING_HALFCYCLE;
     QSPIHandle.Init.FlashSize = QSPI_FLASH_SIZE;
     QSPIHandle.Init.ChipSelectHighTime = QSPI_CS_HIGH_TIME_6_CYCLE;
@@ -571,7 +574,7 @@ UINT _driver_nor_flash_bulk_erase()
         return LX_ERROR;
     }
 
-    return LX_SUCCESS;
+     return LX_SUCCESS;
 }
 
 
@@ -698,15 +701,17 @@ UINT compare_buffers(uint8_t *dst, uint8_t *src, uint32_t size)
  * @brief Perform test read/write driver functionality
  *
  */
-void _driver_test_write()
+void _driver_all_flash_verify()
 {
-    uint32_t *addr = 0x90000000 + 100;
+    for (uint32_t i = 0; i < 4096; i++)
+    {
+        if (_driver_nor_flash_erased_verify(i) != LX_SUCCESS)
+        {
 
-    uint8_t data[256] = {0};
+            while(1);
+        }
+    }
 
-    memset(data, 0xDA, 128);
-
-    _driver_nor_flash_write(addr, data , 64);
 
     while(1);
 }

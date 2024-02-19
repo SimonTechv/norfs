@@ -48,49 +48,46 @@ int main(void)
 
     if (HAL_GPIO_ReadPin(JOY_SEL_GPIO_Port, JOY_SEL_Pin) == GPIO_PIN_SET)
     {
-        flash_driver_init(&nor_mem_desc);
-//        _driver_nor_flash_bulk_erase();
+
     }
 
-//    // LevelX module initialize
-//    _lx_nor_flash_initialize();
-//
-//    uint8_t write_log_block[512] = {0};
-//    uint8_t read_log_block[512]  = {0};
-//
-//    // Fill test block with pattern
-//    memset(write_log_block, 0xAB, 128);
-//
-//
-//    UINT ret = _lx_nor_flash_open(&nor_mem_desc, "VOL0:", flash_driver_init);
-//
-//    if (ret != 0)
-//    {
-//        HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-//    }
-//    else
-//    {
-//        HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-//    }
-//
-//    _lx_nor_flash_extended_cache_enable(&nor_mem_desc, &levelx_cache[0], 128 * 4096);
-//
-//    /* Measure LevelX perfomance write 500 * 512 blocks */
-//    uint32_t start_time = HAL_GetTick();
-////    for(uint32_t a = 0; a < 10; a++)
-//    for (uint32_t i = 0; i < 1000; i++)
-//    {
-//        ret = _lx_nor_flash_sector_write(&nor_mem_desc, i, write_log_block);
-//    }
-//    uint32_t stop_time = HAL_GetTick() - start_time;
-//
-//   NVIC_SystemReset();
+    // LevelX module initialize
+    _lx_nor_flash_initialize();
 
+    uint8_t write_log_block[512] = {0};
+    uint8_t read_log_block[512]  = {0};
+
+    // Fill test block with pattern
+    memset(write_log_block, 0x48, 128);
+
+    UINT ret = _lx_nor_flash_open(&nor_mem_desc, "VOL0:", flash_driver_init);
+
+    if (ret == 1)
+    {
+        HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+    }
+    else
+    {
+        HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, GPIO_PIN_RESET);
+    }
+
+    uint32_t start = HAL_GetTick();
+
+    for (uint32_t log_block = 1025; log_block < 2025; log_block++)
+    {
+        _lx_nor_flash_sector_write(&nor_mem_desc, log_block, write_log_block);
+    }
+
+    uint32_t stop = HAL_GetTick() - start;
 
     HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LED2_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LED2_GPIO_Port, LED4_Pin, GPIO_PIN_RESET);
+
+    HAL_Delay(1000);
+
+    NVIC_SystemReset();
 
 //    MX_USB_DEVICE_Init();   // USB stack initialize
 

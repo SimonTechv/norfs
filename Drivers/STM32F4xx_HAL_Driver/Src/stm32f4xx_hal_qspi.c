@@ -1528,20 +1528,20 @@ HAL_StatusTypeDef HAL_QSPI_Receive_DMA(QSPI_HandleTypeDef *hqspi, uint8_t *pData
               the last data is transferred from DMA FIFO to RAM memory */
 
         /* Enable peripheral increment of the DMA */
-        hqspi->hdma->Init.PeriphInc = DMA_PINC_ENABLE;
+        hqspi->hdma->Init.PeriphInc = DMA_PINC_DISABLE;
 
         /* Disable memory increment of the DMA */
-        hqspi->hdma->Init.MemInc = DMA_MINC_DISABLE;
+        hqspi->hdma->Init.MemInc = DMA_MINC_ENABLE;
 
         /* Update peripheral/memory increment mode bits */
         MODIFY_REG(hqspi->hdma->Instance->CR, (DMA_SxCR_MINC | DMA_SxCR_PINC), (hqspi->hdma->Init.MemInc | hqspi->hdma->Init.PeriphInc));
 
         /* Configure the direction of the DMA */
-        hqspi->hdma->Init.Direction = DMA_MEMORY_TO_PERIPH;
+        hqspi->hdma->Init.Direction = DMA_PERIPH_TO_MEMORY;
 
         /* 4 Extra words (32-bits) are needed for read operation to guarantee
         the last data is transferred from DMA FIFO to RAM memory */
-        WRITE_REG(hqspi->Instance->DLR, (data_size - 1U + 16U));
+        WRITE_REG(hqspi->Instance->DLR, (data_size - 1U));
 
         /* Update direction mode bit */
         MODIFY_REG(hqspi->hdma->Instance->CR, DMA_SxCR_DIR, hqspi->hdma->Init.Direction);
