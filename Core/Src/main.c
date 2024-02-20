@@ -48,6 +48,9 @@ int main(void)
 
     if (HAL_GPIO_ReadPin(JOY_SEL_GPIO_Port, JOY_SEL_Pin) == GPIO_PIN_SET)
     {
+        flash_driver_init(&nor_mem_desc);
+
+        _driver_nor_flash_bulk_erase();
 
     }
 
@@ -59,9 +62,9 @@ int main(void)
 
     // Fill test block with pattern
     memset(write_log_block, 0x48, 128);
-
+    uint32_t start = HAL_GetTick();
     UINT ret = _lx_nor_flash_open(&nor_mem_desc, "VOL0:", flash_driver_init);
-
+    uint32_t stop = HAL_GetTick() - start;
     if (ret == 1)
     {
         HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
@@ -71,14 +74,14 @@ int main(void)
         HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, GPIO_PIN_RESET);
     }
 
-    uint32_t start = HAL_GetTick();
+
 
     for (uint32_t log_block = 1025; log_block < 2025; log_block++)
     {
         _lx_nor_flash_sector_write(&nor_mem_desc, log_block, write_log_block);
     }
 
-    uint32_t stop = HAL_GetTick() - start;
+
 
     HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);

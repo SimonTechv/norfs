@@ -260,28 +260,25 @@ UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
     cmd.DataMode            = QSPI_DATA_NONE;
     cmd.DummyCycles         = 0;
 
-    for (ULONG blk = 0; blk < erase_count; blk++)
+    // Write enable latch set
+    if (_driver_nor_flash_write_enable() != LX_SUCCESS)
     {
-        // Write enable latch set
-        if (_driver_nor_flash_write_enable() != LX_SUCCESS)
-        {
-            return LX_ERROR; // Exit if error occured
-        }
+        return LX_ERROR; // Exit if error occured
+    }
 
-        // Calculate block address
-        cmd.Address = (block + blk) * DRIVER_BLOCK_SIZE;
+    // Calculate block address
+    cmd.Address = block * DRIVER_BLOCK_SIZE;
 
-        // Send ERASE command
-        if (HAL_QSPI_Command(&QSPIHandle, &cmd, N25Q128A_DEFAULT_TIMEOUT) != HAL_OK)
-        {
-            return LX_ERROR;
-        }
+    // Send ERASE command
+    if (HAL_QSPI_Command(&QSPIHandle, &cmd, N25Q128A_DEFAULT_TIMEOUT) != HAL_OK)
+    {
+        return LX_ERROR;
+    }
 
-        // Wait end of end ERASE subsector sequence
-        if (_driver_nor_flash_wait_eop(N25Q128A_SUBSECTOR_ERASE_MAX_TIME) != LX_SUCCESS)
-        {
-            return LX_ERROR;
-        }
+    // Wait end of end ERASE subsector sequence
+    if (_driver_nor_flash_wait_eop(N25Q128A_SUBSECTOR_ERASE_MAX_TIME) != LX_SUCCESS)
+    {
+        return LX_ERROR;
     }
 
     return LX_SUCCESS;
