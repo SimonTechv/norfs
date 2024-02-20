@@ -61,10 +61,10 @@ int main(void)
     uint8_t read_log_block[512]  = {0};
 
     // Fill test block with pattern
-    memset(write_log_block, 0x48, 128);
-    uint32_t start = HAL_GetTick();
+    memset(write_log_block, 0xda, 128);
+
     UINT ret = _lx_nor_flash_open(&nor_mem_desc, "VOL0:", flash_driver_init);
-    uint32_t stop = HAL_GetTick() - start;
+
     if (ret == 1)
     {
         HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
@@ -75,12 +75,12 @@ int main(void)
     }
 
 
-
-    for (uint32_t log_block = 1025; log_block < 2025; log_block++)
+    uint32_t start = HAL_GetTick();
+    for (uint32_t log_block = 0; log_block < 8000; log_block++)
     {
         _lx_nor_flash_sector_write(&nor_mem_desc, log_block, write_log_block);
     }
-
+    uint32_t stop = HAL_GetTick() - start;
 
 
     HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);

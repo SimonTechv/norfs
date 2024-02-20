@@ -120,7 +120,7 @@ UINT _driver_nor_flash_write(ULONG *flash_address, ULONG *source, ULONG words)
     // Остаток байт вмещающихся до границы программируемой страницы
     ULONG temp_prog_size = N25_PAGE_PROG_SIZE - (address % N25_PAGE_PROG_SIZE);
     ULONG temp_prog_addr = address;        // Счетчик адреса
-    ULONG end_address    = address + size; // Адрес байта следующего за последним байтом данных
+    ULONG end_address    = address + size; // Адрес байта следующего за последним байтом запрограмированных данных
 
     // Если свободного места больше чем у нас имеется данных для записи
     if (size < temp_prog_size)
@@ -147,7 +147,7 @@ UINT _driver_nor_flash_write(ULONG *flash_address, ULONG *source, ULONG words)
         temp_prog_addr += temp_prog_size;
         data           += temp_prog_size;
 
-        // Если до конца памяти осталось большем чем размер программируемой страницы
+        // Если до конца памяти осталось меньше чем размер программируемой страницы
         if ((temp_prog_addr + N25_PAGE_PROG_SIZE) > end_address)
         {
             // Последний чанк есть разница между адресами конца и текущего
@@ -254,7 +254,7 @@ UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
     cmd.DdrHoldHalfCycle  = QSPI_DDR_HHC_ANALOG_DELAY;
     cmd.SIOOMode          = QSPI_SIOO_INST_EVERY_CMD;
 
-    cmd.Instruction         = SUBSECTOR_ERASE_CMD;
+    cmd.Instruction         = SECTOR_ERASE_CMD;
     cmd.AddressMode         = QSPI_ADDRESS_1_LINE;
     cmd.InstructionMode     = QSPI_INSTRUCTION_1_LINE;
     cmd.DataMode            = QSPI_DATA_NONE;
