@@ -9,6 +9,8 @@
 #include "stm32f4xx.h"
 #include "gpio_defs.h"
 
+#include "block_test.h"
+
 // QSPI дескриптор
 QSPI_HandleTypeDef QSPIHandle;
 
@@ -19,11 +21,6 @@ UCHAR __IO TxCplt, RxCplt, CmdCplt = 0;
 __attribute__((aligned(4))) ULONG sector_buffer[LX_NOR_SECTOR_SIZE] = {0};
 
 __attribute__((aligned(4))) ULONG verify_sector_buffer[LX_NOR_SECTOR_SIZE] = {0};
-
-
-/* Тестовые буферы по 4096 байт */
-__attribute__((aligned(4))) uint8_t databuf_w[4096] = {0};
-__attribute__((aligned(4))) uint8_t databuf_r[4096] = {0};
 
 /* Local fuctions prototypes */
 //UINT                            (*lx_nor_flash_driver_read)(ULONG *flash_address, ULONG *destination, ULONG words);
@@ -88,6 +85,16 @@ UINT flash_driver_init(LX_NOR_FLASH *instance)
     {
         return LX_ERROR;
     }
+
+
+    // Проверим все 256 блоков
+    for (uint16_t blk = 0; blk < 256; blk++)
+    {
+       uint8_t ret = _driver_test_block(blk);
+       printf("BLSTS: %d\r\n", ret);
+    }
+
+    while(1);
 
     return LX_SUCCESS;
 }
@@ -622,55 +629,54 @@ UINT _driver_nor_flash_write_enable()
 }
 
 /**
- * @brief Проверка стирания, записи и удержания информации в секторе (4096 байт)
+ * @brief Проверка стирания, записи и удержания информации в секторе (64 KByte)
  *
- * @param block : Номер блока (0 ~ 4095)
- * @return
+ * @param  block        : Номер блока (0 ~ 255)
+ * @return test_status  : Результат тестирования
  */
 UINT _driver_test_block(ULONG block)
 {
-    // Тестируем стирание сектора
-    memset(databuf_w, 0xAA, 4096);
+    // Базовый адрес блока флеш памяти с фейковым оффсетом
+    ULONG block_addr = block * DRIVER_BLOCK_SIZE + DRIVER_BASE_OFFSET_MEM;
 
-    // Стираем блок целиком
-    if (_driver_nor_flash_block_erase(block, 1) != LX_SUCCESS)
+    // Полностью стираем блок
+    if (_driver_nor_flash_block_erase(block, 0) != LX_SUCCESS)
     {
-        return 1;
+        return ERASE_FAILED;
     }
 
+    // Проверяем корректность стирания блока
     if (_driver_nor_flash_erased_verify(block))
     {
-        return 1;
+        return ERASE_VERIFY_FAILED;
     }
 
-    /* Measure LevelX perfomance write 500 * 512 blocks */
-    uint32_t start_time = HAL_GetTick();
-
-
-    // Заполняем блок значениями
-    if (_driver_nor_flash_write(block * 4096, databuf_w, 1024) != LX_SUCCESS)
+    // Записываем 64 килобайта информации (по 512 байт)
+    for (ULONG temp_addr = block_addr; temp_addr < (block_addr + DRIVER_BLOCK_SIZE); temp_addr += sizeof(data_pattern))
     {
-        return 2;
+        if (_driver_nor_flash_write((ULONG*)temp_addr, (ULONG*)&data_pattern[0], sizeof(data_pattern)/4) != LX_SUCCESS)
+        {
+            return WRITING_FAILED;
+        }
     }
 
-    uint32_t stop_time = HAL_GetTick() - start_time;
-
-    __NOP();
-
-    // Вычитываем значения
-    if (_driver_nor_flash_read(block * 4096, databuf_r, 1024) != LX_SUCCESS)
+    // Проверяем что записалось
+    for (ULONG temp_addr = block_addr; temp_addr < (block_addr + DRIVER_BLOCK_SIZE); temp_addr += sizeof(data_pattern))
     {
-        return 2;
+        if (_driver_nor_flash_read((ULONG*)temp_addr, &verify_sector_buffer[0], sizeof(verify_sector_buffer)/4) != LX_SUCCESS)
+        {
+            return READING_FAILED;
+        }
+
+        // Верифицируем блок данных
+        if (compare_buffers((uint8_t*)&verify_sector_buffer[0], (uint8_t*)&data_pattern[0], sizeof(data_pattern)) != 0)
+        {
+            return COMPARE_FAILED;
+        }
     }
 
-    // Сравниваем буферы
-    if (compare_buffers(databuf_r, databuf_w, 4096) != LX_SUCCESS)
-    {
-        return 3;
-    }
-
-    return 0;
-
+    // Тесты пройдены успешно!
+    return PASSED;
 }
 
 /**

@@ -24,7 +24,7 @@
 #define N25_SUBSECTOR_SIZE                   4096
 #define N25_SUBSECTOR_COUNT                  4096
 #define N25_SECTOR_SIZE                      65536
-#define N25_SECTOR_COUNT                     255
+#define N25_SECTOR_COUNT                     64
 #define N25_MEMORY_SIZE                      N25_SUBSECTOR_COUNT * N25_SUBSECTOR_SIZE
 #define N25_BASE_ADDR                        0x000000
 #define N25_HIGH_ADDR                        0xFFFFFF

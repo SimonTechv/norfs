@@ -50,7 +50,9 @@ int main(void)
     {
         flash_driver_init(&nor_mem_desc);
 
+        HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
         _driver_nor_flash_bulk_erase();
+        HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 
     }
 
@@ -68,25 +70,32 @@ int main(void)
     if (ret == 1)
     {
         HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+        while(1);
     }
     else
     {
         HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, GPIO_PIN_RESET);
-    }
 
+    }
 
     uint32_t start = HAL_GetTick();
-    for (uint32_t log_block = 0; log_block < 8000; log_block++)
+
+    for (uint32_t log_block = 0; log_block < 500; log_block++)
     {
-        _lx_nor_flash_sector_write(&nor_mem_desc, log_block, write_log_block);
+        ret = _lx_nor_flash_sector_write(&nor_mem_desc, log_block, write_log_block);
+
+        if (ret != 0)
+        {
+            break;
+        }
     }
+
     uint32_t stop = HAL_GetTick() - start;
 
-
-    HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(LED2_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(LED2_GPIO_Port, LED4_Pin, GPIO_PIN_RESET);
+    if (ret != LX_SUCCESS)
+    {
+        HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+    }
 
     HAL_Delay(1000);
 

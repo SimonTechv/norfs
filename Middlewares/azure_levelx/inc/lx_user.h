@@ -103,7 +103,7 @@
    values must be a power of 2.
 */
 
-#define LX_NOR_SECTOR_MAPPING_CACHE_SIZE   64
+#define LX_NOR_SECTOR_MAPPING_CACHE_SIZE   16
 
 
 /* Defined, this makes LevelX thread-safe by using a ThreadX mutex object 
@@ -118,8 +118,8 @@
 #define LX_STANDALONE_ENABLE
 
 /* Define user extension for NOR flash control block. User extension is placed at the end of flash control block and it is not cleared on opening flash. */
-/* 
-#define LX_NOR_FLASH_USER_EXTENSION    ????
+/*
+#define LX_NOR_FLASH_USER_EXTENSION
 */
 
 /* Define user extension for NAND flash control block. User extension is placed at the end of flash control block and it is not cleared on opening flash.  */
