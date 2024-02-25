@@ -87,13 +87,13 @@ UINT flash_driver_init(LX_NOR_FLASH *instance)
  */
 UINT flash_driver_deinit()
 {
-	/* Deinitialize QSPI peripheral*/
-	if (HAL_QSPI_DeInit(&QSPIHandle) != HAL_OK)
-	{
-		 return LX_ERROR;
-	}
+    /* Deinitialize QSPI peripheral*/
+    if (HAL_QSPI_DeInit(&QSPIHandle) != HAL_OK)
+    {
+        return LX_ERROR;
+    }
 
-	/* All operations success */
+    /* All operations success */
     return LX_SUCCESS;
 }
 
@@ -228,8 +228,8 @@ UINT _driver_nor_flash_read(ULONG *flash_address, ULONG *destination, ULONG word
     RxCplt = 0;
     if (ErrCblk != 0)
     {
-    	ErrCblk = 0;
-    	return LX_ERROR;
+        ErrCblk = 0;
+        return LX_ERROR;
     }
 
 
@@ -343,8 +343,8 @@ UINT _driver_nor_flash_erased_verify(ULONG block)
  */
 UINT _driver_nor_flash_system_error(UINT error_code)
 {
-	// Stop!
-	while(1);
+    // Stop!
+    while(1);
     return LX_SUCCESS;
 }
 
@@ -400,8 +400,8 @@ UINT _driver_nor_flash_page_prog(ULONG address, UCHAR* data, ULONG size)
     TxCplt = 0;
     if (ErrCblk != 0)
     {
-    	ErrCblk = 0;
-    	return LX_ERROR;
+        ErrCblk = 0;
+        return LX_ERROR;
     }
 
     // Wait EOP
@@ -454,7 +454,7 @@ UINT _driver_nor_flash_configure()
     // Set WEL
     if (_driver_nor_flash_write_enable() != LX_SUCCESS)
     {
-       return LX_ERROR;
+        return LX_ERROR;
     }
 
     // Set dummy clock count
@@ -481,7 +481,7 @@ UINT _driver_nor_flash_configure()
 
     if (HAL_QSPI_Transmit(&QSPIHandle, &vcr_reg_w, N25Q128A_DEFAULT_TIMEOUT) != HAL_OK)
     {
-       return LX_ERROR;
+        return LX_ERROR;
     }
 
     /* Check dummy clock count */
@@ -579,7 +579,7 @@ UINT _driver_nor_flash_bulk_erase()
         return LX_ERROR;
     }
 
-     return LX_SUCCESS;
+    return LX_SUCCESS;
 }
 
 
@@ -714,7 +714,7 @@ void HAL_QSPI_TxCpltCallback(QSPI_HandleTypeDef *hqspi)
 
 void HAL_QSPI_ErrorCallback(QSPI_HandleTypeDef *hqspi)
 {
-	ErrCblk = 1;
+    ErrCblk = 1;
 }
 
 

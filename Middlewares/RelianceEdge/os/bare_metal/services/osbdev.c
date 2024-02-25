@@ -15,17 +15,17 @@
     You should have received a copy of the GNU General Public License along
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+ */
 /*  Businesses and individuals that for commercial or other reasons cannot
     comply with the terms of the GPLv2 license must obtain a commercial
     license before incorporating Reliance Edge into proprietary software
     for distribution in any form.
 
     Visit https://www.tuxera.com/products/reliance-edge/ for more information.
-*/
+ */
 /** @file
     @brief Implements block device I/O.
-*/
+ */
 #include <redfs.h>
 #include <redvolume.h>
 #include <redbdev.h>
@@ -64,15 +64,15 @@ enum {LX_NOINIT, LX_INIT, LX_INITERR} ini_sts = LX_NOINIT;
 
     @retval 0           Operation was successful.
     @retval -RED_EINVAL @p bVolNum is not a valid volume number.
-*/
+ */
 REDSTATUS RedOsBDevConfig(
-    uint8_t     bVolNum,
-    REDBDEVCTX  context)
+        uint8_t     bVolNum,
+        REDBDEVCTX  context)
 {
-	/* Validate input parameters */
+    /* Validate input parameters */
     if(bVolNum >= REDCONF_VOLUME_COUNT)
     {
-    	return -RED_EINVAL;
+        return -RED_EINVAL;
     }
 
     /* Not used in this implementation */
@@ -102,12 +102,12 @@ REDSTATUS RedOsBDevConfig(
     @retval 0           Operation was successful.
     @retval -RED_EINVAL @p bVolNum is an invalid volume number.
     @retval -RED_EIO    A disk I/O error occurred.
-*/
+ */
 REDSTATUS RedOsBDevOpen(
-    uint8_t         bVolNum,
-    BDEVOPENMODE    mode)
+        uint8_t         bVolNum,
+        BDEVOPENMODE    mode)
 {
-	/* Validate input parameters */
+    /* Validate input parameters */
     if(bVolNum >= REDCONF_VOLUME_COUNT)
     {
         return -RED_EINVAL;
@@ -116,8 +116,8 @@ REDSTATUS RedOsBDevOpen(
     /* Prevent reinitialize if we have already initialized LevelX module*/
     if (ini_sts == LX_INIT)
     {
-    	/* All operations success */
-    	return 0;
+        /* All operations success */
+        return 0;
     }
 
     /* LevelX FTL module initialize */
@@ -126,10 +126,13 @@ REDSTATUS RedOsBDevOpen(
     /* Initialize QSPI low level & nor flash*/
     if (_lx_nor_flash_open(&nor_mem_desc, gaRedVolConf[0].pszPathPrefix, flash_driver_init) != LX_SUCCESS)
     {
-    	/* Error in initialization */
-    	ini_sts = LX_INITERR;
-    	return -RED_EIO;
+        /* Error in initialization */
+        ini_sts = LX_INITERR;
+        return -RED_EIO;
     }
+
+    /* Change init status */
+    ini_sts = LX_INIT;
 
     /* All operations success */
     return 0;
@@ -155,11 +158,11 @@ REDSTATUS RedOsBDevOpen(
 
     @retval 0           Operation was successful.
     @retval -RED_EINVAL @p bVolNum is an invalid volume number.
-*/
+ */
 REDSTATUS RedOsBDevClose(
-    uint8_t     bVolNum)
+        uint8_t     bVolNum)
 {
-	/* Validate input parameters */
+    /* Validate input parameters */
     if(bVolNum >= REDCONF_VOLUME_COUNT)
     {
         return -RED_EINVAL;
@@ -168,15 +171,15 @@ REDSTATUS RedOsBDevClose(
     /* Perform closing flash driver */
     if (_lx_nor_flash_close(&nor_mem_desc) != LX_SUCCESS)
     {
-    	ini_sts = LX_INITERR;
-    	return -RED_EIO;
+        ini_sts = LX_INITERR;
+        return -RED_EIO;
     }
 
     /* Deinitialize QSPI peripheral */
     if (flash_driver_deinit() != LX_SUCCESS)
     {
-    	ini_sts = LX_INITERR;
-    	return -RED_EIO;
+        ini_sts = LX_INITERR;
+        return -RED_EIO;
     }
 
     /* Change init status */
@@ -204,14 +207,14 @@ REDSTATUS RedOsBDevClose(
                             is `NULL`.
     @retval -RED_EIO        A disk I/O error occurred.
     @retval -RED_ENOTSUPP   The geometry cannot be queried on this block device.
-*/
+ */
 REDSTATUS RedOsBDevGetGeometry(
-    uint8_t     bVolNum,
-    BDEVINFO   *pInfo)
+        uint8_t     bVolNum,
+        BDEVINFO   *pInfo)
 {
     if((bVolNum >= REDCONF_VOLUME_COUNT) || (pInfo == NULL))
     {
-    	return -RED_EINVAL;
+        return -RED_EINVAL;
     }
 
     /* Get sector count */
@@ -243,18 +246,18 @@ REDSTATUS RedOsBDevGetGeometry(
                         `NULL`, or @p ullStartSector and/or @p ulSectorCount
                         refer to an invalid range of sectors.
     @retval -RED_EIO    A disk I/O error occurred.
-*/
+ */
 REDSTATUS RedOsBDevRead(
-    uint8_t     bVolNum,
-    uint64_t    ullSectorStart,
-    uint32_t    ulSectorCount,
-    void       *pBuffer)
+        uint8_t     bVolNum,
+        uint64_t    ullSectorStart,
+        uint32_t    ulSectorCount,
+        void       *pBuffer)
 {
     if(    (bVolNum >= REDCONF_VOLUME_COUNT)
-        || !VOLUME_SECTOR_RANGE_IS_VALID(bVolNum, ullSectorStart, ulSectorCount)
-        || (pBuffer == NULL))
+            || !VOLUME_SECTOR_RANGE_IS_VALID(bVolNum, ullSectorStart, ulSectorCount)
+            || (pBuffer == NULL))
     {
-    	return -RED_EINVAL;
+        return -RED_EINVAL;
     }
 
     /* Copy data pointer */
@@ -266,32 +269,32 @@ REDSTATUS RedOsBDevRead(
     /* Read ulSectorCount (512 bytes block) */
     for (uint32_t ulCnt = 0; ulCnt < ulSectorCount; ulCnt++)
     {
-    	/* If pointer is aligned */
-    	if (IS_ALIGNED_PTR(pBuffer, sizeof(uint32_t)))
-    	{
-        	/* Read 512 byte logical sector */
-        	if (_lx_nor_flash_sector_read(&nor_mem_desc, ullTmpSector, tmpBuf) != LX_SUCCESS)
-        	{
-        		return -RED_EIO;
-        	}
-    	}
-    	else
-    	{
-    		/* Read 512 byte logical sector to aligned buffer */
-    		if (_lx_nor_flash_sector_read(&nor_mem_desc, ullTmpSector, ulBuffer) != LX_SUCCESS)
-    		{
-    			return -RED_EIO;
-    		}
+        /* If pointer is aligned */
+        if (IS_ALIGNED_PTR(pBuffer, sizeof(uint32_t)))
+        {
+            /* Read 512 byte logical sector */
+            if (_lx_nor_flash_sector_read(&nor_mem_desc, ullTmpSector, tmpBuf) != LX_SUCCESS)
+            {
+                return -RED_EIO;
+            }
+        }
+        else
+        {
+            /* Read 512 byte logical sector to aligned buffer */
+            if (_lx_nor_flash_sector_read(&nor_mem_desc, ullTmpSector, ulBuffer) != LX_SUCCESS)
+            {
+                return -RED_EIO;
+            }
 
-    		/* Copy to unaligned buffer */
-    		RedMemCpy(tmpBuf, ulBuffer, sizeof(ulBuffer));
-    	}
+            /* Copy to unaligned buffer */
+            RedMemCpy(tmpBuf, ulBuffer, sizeof(ulBuffer));
+        }
 
-    	/* Increase sector counter */
-    	ullTmpSector += 1;
+        /* Increase sector counter */
+        ullTmpSector += 1;
 
-    	/* Shift reading buffer pointer */
-    	tmpBuf += 512;
+        /* Shift reading buffer pointer */
+        tmpBuf += 512;
     }
 
     /* All operations success */
@@ -318,19 +321,19 @@ REDSTATUS RedOsBDevRead(
                         `NULL`, or @p ullStartSector and/or @p ulSectorCount
                         refer to an invalid range of sectors.
     @retval -RED_EIO    A disk I/O error occurred.
-*/
+ */
 REDSTATUS RedOsBDevWrite(
-    uint8_t     bVolNum,
-    uint64_t    ullSectorStart,
-    uint32_t    ulSectorCount,
-    const void *pBuffer)
+        uint8_t     bVolNum,
+        uint64_t    ullSectorStart,
+        uint32_t    ulSectorCount,
+        const void *pBuffer)
 {
     /* Verify input arguments */
     if(    (bVolNum >= REDCONF_VOLUME_COUNT)
-        || !VOLUME_SECTOR_RANGE_IS_VALID(bVolNum, ullSectorStart, ulSectorCount)
-        || (pBuffer == NULL))
+            || !VOLUME_SECTOR_RANGE_IS_VALID(bVolNum, ullSectorStart, ulSectorCount)
+            || (pBuffer == NULL))
     {
-    	return -RED_EINVAL;
+        return -RED_EINVAL;
     }
 
     /* Copy data pointer */
@@ -342,29 +345,29 @@ REDSTATUS RedOsBDevWrite(
     /* Write ulSectorCount (512 bytes block) */
     for (uint32_t ulCnt = 0; ulCnt < ulSectorCount; ulCnt++)
     {
-    	/* If pointer is aligned */
-    	if (IS_ALIGNED_PTR(tmpBuf, sizeof(uint32_t)))
-    	{
-        	/* Write 512 byte logical sector */
+        /* If pointer is aligned */
+        if (IS_ALIGNED_PTR(tmpBuf, sizeof(uint32_t)))
+        {
+            /* Write 512 byte logical sector */
             if (_lx_nor_flash_sector_write(&nor_mem_desc, ullTmpSector, tmpBuf) != LX_SUCCESS)
             {
-            	return -RED_EIO;
+                return -RED_EIO;
             }
-    	}
-    	else
-    	{
-    		/* Copy data to aligned buffer */
-    		RedMemCpy(ulBuffer, tmpBuf, sizeof(ulBuffer));
+        }
+        else
+        {
+            /* Copy data to aligned buffer */
+            RedMemCpy(ulBuffer, tmpBuf, sizeof(ulBuffer));
 
-        	/* Write 512 byte logical sector from aligned buffer */
+            /* Write 512 byte logical sector from aligned buffer */
             if (_lx_nor_flash_sector_write(&nor_mem_desc, ullTmpSector, ulBuffer) != LX_SUCCESS)
             {
-            	return -RED_EIO;
+                return -RED_EIO;
             }
-    	}
+        }
 
         /* Increase sector counter */
-    	ullTmpSector += 1;
+        ullTmpSector += 1;
 
         /* Shift writing buffer */
         tmpBuf += 512;
@@ -395,14 +398,14 @@ REDSTATUS RedOsBDevWrite(
     @retval 0           Operation was successful.
     @retval -RED_EINVAL @p bVolNum is an invalid volume number.
     @retval -RED_EIO    A disk I/O error occurred.
-*/
+ */
 REDSTATUS RedOsBDevFlush(
-    uint8_t     bVolNum)
+        uint8_t     bVolNum)
 {
-	/* Verify input arguments */
+    /* Verify input arguments */
     if(bVolNum >= REDCONF_VOLUME_COUNT)
     {
-    	return -RED_EINVAL;
+        return -RED_EINVAL;
     }
 
     /* Not used in this implementation*/
