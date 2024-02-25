@@ -12,13 +12,13 @@
 
 #include "lx_api.h"
 
+#include <redfs.h>
+#include <redposix.h>
+#include <redfse.h>
+#include <redconf.h>
+
 /* USART descriptor for printf */
 UART_HandleTypeDef huart2;
-
-// NOR QSPI memory desc
-LX_NOR_FLASH nor_mem_desc = {0};
-
-ULONG levelx_cache[128 * 128] = {0};
 
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
@@ -46,60 +46,21 @@ int main(void)
     // Setting up formatting NOR flash
     HAL_GPIO_Init(GPIOA, &joy_select);
 
+    /* Try to mount*/
     if (HAL_GPIO_ReadPin(JOY_SEL_GPIO_Port, JOY_SEL_Pin) == GPIO_PIN_SET)
     {
-        flash_driver_init(&nor_mem_desc);
+    	int32_t ret = red_init();
+    	ret = red_mount("SPIF:");
 
-        HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-        _driver_nor_flash_bulk_erase();
-        HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+    	if (ret != 0)
+    	{
+    	    ret = red_format("SPIF:");
+    	}
 
+    	ret = red_mount("SPIF:");
+
+    	__NOP();
     }
-
-    // LevelX module initialize
-    _lx_nor_flash_initialize();
-
-    uint8_t write_log_block[512] = {0};
-    uint8_t read_log_block[512]  = {0};
-
-    // Fill test block with pattern
-    memset(write_log_block, 0xda, 128);
-
-    UINT ret = _lx_nor_flash_open(&nor_mem_desc, "VOL0:", flash_driver_init);
-
-    if (ret == 1)
-    {
-        HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
-        while(1);
-    }
-    else
-    {
-        HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, GPIO_PIN_RESET);
-
-    }
-
-    uint32_t start = HAL_GetTick();
-
-    for (uint32_t log_block = 0; log_block < 500; log_block++)
-    {
-        ret = _lx_nor_flash_sector_write(&nor_mem_desc, log_block, write_log_block);
-
-        if (ret != 0)
-        {
-            break;
-        }
-    }
-
-    uint32_t stop = HAL_GetTick() - start;
-
-    if (ret != LX_SUCCESS)
-    {
-        HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
-    }
-
-    HAL_Delay(1000);
-
-    NVIC_SystemReset();
 
 //    MX_USB_DEVICE_Init();   // USB stack initialize
 

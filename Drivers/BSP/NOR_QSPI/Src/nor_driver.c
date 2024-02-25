@@ -15,19 +15,12 @@
 QSPI_HandleTypeDef QSPIHandle;
 
 // Флаги завершения чтения/записи данных через DMA
-UCHAR __IO TxCplt, RxCplt, CmdCplt = 0;
+UCHAR __IO TxCplt, RxCplt, ErrCblk = 0;
 
 // ULONG size aligned buffer for driver sector access
 __attribute__((aligned(4))) ULONG sector_buffer[LX_NOR_SECTOR_SIZE] = {0};
-
 __attribute__((aligned(4))) ULONG verify_sector_buffer[LX_NOR_SECTOR_SIZE] = {0};
 
-/* Local fuctions prototypes */
-//UINT                            (*lx_nor_flash_driver_read)(ULONG *flash_address, ULONG *destination, ULONG words);
-//UINT                            (*lx_nor_flash_driver_write)(ULONG *flash_address, ULONG *source, ULONG words);
-//UINT                            (*lx_nor_flash_driver_block_erase)(ULONG block, ULONG erase_count);
-//UINT                            (*lx_nor_flash_driver_block_erased_verify)(ULONG block);
-//UINT                            (*lx_nor_flash_driver_system_error)(UINT error_code);
 
 /* Driver auxiliary functions*/
 UINT _driver_qspi_init(void);
@@ -36,9 +29,7 @@ UINT _driver_nor_flash_write_enable(void);
 UINT _driver_nor_flash_configure(void);
 UINT _driver_nor_flash_page_prog(ULONG address, UCHAR* data, ULONG size);
 UINT _driver_test_block(ULONG block);
-
 UINT compare_buffers(uint8_t *dst, uint8_t *src, uint32_t size);
-
 
 /* IO driver main functions */
 UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count);
@@ -48,10 +39,7 @@ UINT _driver_nor_flash_erased_verify(ULONG block);
 UINT _driver_nor_flash_system_error(UINT error_code);
 
 
-
 /* Global driver functions */
-
-
 /**
  * Initialize NOR flash memory driver
  * @param instance Driver settings instance
@@ -59,6 +47,9 @@ UINT _driver_nor_flash_system_error(UINT error_code);
  */
 UINT flash_driver_init(LX_NOR_FLASH *instance)
 {
+    // Wait... (after power loss or reset)
+    HAL_Delay(20);
+
     // Setting up driver params
     instance->lx_nor_flash_base_address     = (ULONG *)DRIVER_BASE_OFFSET_MEM;
     instance->lx_nor_flash_total_blocks     = DRIVER_BLOCK_COUNT;
@@ -86,16 +77,23 @@ UINT flash_driver_init(LX_NOR_FLASH *instance)
         return LX_ERROR;
     }
 
+    return LX_SUCCESS;
+}
 
-    // Проверим все 256 блоков
-    for (uint16_t blk = 0; blk < 256; blk++)
-    {
-       uint8_t ret = _driver_test_block(blk);
-       printf("BLSTS: %d\r\n", ret);
-    }
+/**
+ * Deinitilize NOR flash memory driver
+ * @param instance Driver settings instance
+ * @return status of operations
+ */
+UINT flash_driver_deinit()
+{
+	/* Deinitialize QSPI peripheral*/
+	if (HAL_QSPI_DeInit(&QSPIHandle) != HAL_OK)
+	{
+		 return LX_ERROR;
+	}
 
-    while(1);
-
+	/* All operations success */
     return LX_SUCCESS;
 }
 
@@ -175,9 +173,9 @@ UINT _driver_nor_flash_write(ULONG *flash_address, ULONG *source, ULONG words)
 /**
  * @brief Perform read in QSPI mode
  *
- * @param flash_address
- * @param destination
- * @param words (Count of 4-byte words)
+ * @param flash_address : address in flash memory + fake offset
+ * @param destination   : destination buffer
+ * @param words         : (Count of 4-byte words)
  * @return status of operation
  */
 UINT _driver_nor_flash_read(ULONG *flash_address, ULONG *destination, ULONG words)
@@ -226,8 +224,14 @@ UINT _driver_nor_flash_read(ULONG *flash_address, ULONG *destination, ULONG word
     }
 
     // Waiting EOR
-    while(RxCplt == 0);
+    while(RxCplt == 0 && ErrCblk == 0);
     RxCplt = 0;
+    if (ErrCblk != 0)
+    {
+    	ErrCblk = 0;
+    	return LX_ERROR;
+    }
+
 
     /* Restore S# timing for nonRead commands */
     MODIFY_REG(QSPIHandle.Instance->DCR, QUADSPI_DCR_CSHT, QSPI_CS_HIGH_TIME_5_CYCLE);
@@ -239,9 +243,9 @@ UINT _driver_nor_flash_read(ULONG *flash_address, ULONG *destination, ULONG word
 /**
  * @brief Perform SUBSECTOR erase (4-kByte size sector)
  *
- * @param block
- * @param erase_count
- * @return
+ * @param block			: Number of block
+ * @param erase_count   : Diagnostic information
+ * @return status       : Status of operation
  */
 UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
 {
@@ -295,8 +299,8 @@ UINT _driver_nor_flash_block_erase(ULONG block, ULONG erase_count)
 /**
  * @brief Verify block erase
  *
- * @param block : Number of block (SUBSECTOR for this flash memory)
- * @return block erase status
+ * @param block  : Number of block (SUBSECTOR for this flash memory)
+ * @return block : erase status
  */
 UINT _driver_nor_flash_erased_verify(ULONG block)
 {
@@ -339,16 +343,8 @@ UINT _driver_nor_flash_erased_verify(ULONG block)
  */
 UINT _driver_nor_flash_system_error(UINT error_code)
 {
-    __NOP();
-
-    printf("ERROR!!!");
-
-//    _driver_nor_flash_bulk_erase();
-
-    if (error_code == 91)
-    {
-    }
-
+	// Stop!
+	while(1);
     return LX_SUCCESS;
 }
 
@@ -358,9 +354,9 @@ UINT _driver_nor_flash_system_error(UINT error_code)
 /**
  * @brief Place 256-byte page into selected area by address
  *
- * @param address: Address in FLASH memory
- * @param data:    Pointer to data buffer
- * @param size:    Buffer size (in bytes)
+ * @param address : Address in FLASH memory
+ * @param data    : Pointer to data buffer
+ * @param size    : Buffer size (in bytes)
  * @return
  */
 UINT _driver_nor_flash_page_prog(ULONG address, UCHAR* data, ULONG size)
@@ -400,8 +396,13 @@ UINT _driver_nor_flash_page_prog(ULONG address, UCHAR* data, ULONG size)
     }
 
     // Waiting EOT
-    while(TxCplt == 0);
+    while(TxCplt == 0 && ErrCblk == 0);
     TxCplt = 0;
+    if (ErrCblk != 0)
+    {
+    	ErrCblk = 0;
+    	return LX_ERROR;
+    }
 
     // Wait EOP
     if (_driver_nor_flash_wait_eop(N25Q128A_DEFAULT_TIMEOUT) != LX_SUCCESS)
@@ -682,9 +683,9 @@ UINT _driver_test_block(ULONG block)
 /**
  * @brief Сравнить буферы данных
  *
- * @param dst
- * @param src
- * @param size
+ * @param dst   : destination buffer
+ * @param src   : source buffer
+ * @param size  : size in bytes
  * @return
  */
 UINT compare_buffers(uint8_t *dst, uint8_t *src, uint32_t size)
@@ -700,26 +701,6 @@ UINT compare_buffers(uint8_t *dst, uint8_t *src, uint32_t size)
     return 0;
 }
 
-/**
- * @brief Perform test read/write driver functionality
- *
- */
-void _driver_all_flash_verify()
-{
-    for (uint32_t i = 0; i < 4096; i++)
-    {
-        if (_driver_nor_flash_erased_verify(i) != LX_SUCCESS)
-        {
-
-            while(1);
-        }
-    }
-
-
-    while(1);
-}
-
-
 
 void HAL_QSPI_RxCpltCallback(QSPI_HandleTypeDef *hqspi)
 {
@@ -731,20 +712,9 @@ void HAL_QSPI_TxCpltCallback(QSPI_HandleTypeDef *hqspi)
     TxCplt = 1;
 }
 
-void HAL_QSPI_CmdCpltCallback(QSPI_HandleTypeDef *hqspi)
+void HAL_QSPI_ErrorCallback(QSPI_HandleTypeDef *hqspi)
 {
-    CmdCplt = 1;
+	ErrCblk = 1;
 }
 
-//                // Если в следующей итерации цикла мы выйдем за пределы программируемой памяти
-//                if ((temp_prog_addr + N25_PAGE_PROG_SIZE) > end_address)
-//                {
-//                    // Дописываем остаток байт в следующей команде
-//                    temp_prog_size = end_address - temp_prog_addr;
-//                }
-//                else
-//                {
-//                    // Иначе в следующей итерации программируем полную страницу
-//                    temp_prog_size = N25_PAGE_PROG_SIZE;
-//                }
 

@@ -50,12 +50,17 @@
 									<listOptionValue builtIn="false" value="../Drivers/CMSIS/Device/ST/STM32F4xx/Include"/>
 									<listOptionValue builtIn="false" value="../Drivers/CMSIS/Include"/>
 									<listOptionValue builtIn="false" value="../Core/Inc"/>
+									<listOptionValue builtIn="false" value="../Drivers/BSP/NOR_QSPI/Inc"/>
+									<listOptionValue builtIn="false" value="../Middlewares/AzureLevelX/Inc"/>
+									<listOptionValue builtIn="false" value="../Middlewares/RelianceEdge/include"/>
+									<listOptionValue builtIn="false" value="../Middlewares/RelianceEdge/core/driver"/>
+									<listOptionValue builtIn="false" value="../Middlewares/RelianceEdge/core/include"/>
 									<listOptionValue builtIn="false" value="../Drivers/BSP/SD"/>
-									<listOptionValue builtIn="false" value="../Middlewares/usb_stack/Class/MSC/Inc"/>
-									<listOptionValue builtIn="false" value="../Middlewares/usb_stack/Core/Inc"/>
-									<listOptionValue builtIn="false" value="../Middlewares/usb_stack/usb_device_app/App"/>
-									<listOptionValue builtIn="false" value="../Middlewares/usb_stack/usb_device_app/Target"/>
-									<listOptionValue builtIn="false" value="../Middlewares/azure_levelx/inc"/>
+									<listOptionValue builtIn="false" value="../Middlewares/USBFS/Class/MSC/Inc"/>
+									<listOptionValue builtIn="false" value="../Middlewares/USBFS/Core/Inc"/>
+									<listOptionValue builtIn="false" value="../Middlewares/USBFS/usb_device_app/App"/>
+									<listOptionValue builtIn="false" value="../Middlewares/USBFS/usb_device_app/Target"/>
+									<listOptionValue builtIn="false" value="../Middlewares/RelianceEdge/os/bare_metal/include"/>
 								</option>
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.w_switch_default.554664636" name="Warn when a switch statement does not have a default case (-Wswitch-default)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.w_switch_default" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.w_switch_enum.1667698396" name="Warn if switch is used on an enum type and the switch statement lacks case for some enumerations (-Wswitch-enum)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.w_switch_enum" useByScannerDiscovery="false" value="true" valueType="boolean"/>
@@ -85,9 +90,9 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="Src/redconf.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
-						<entry excluding="RelianceEdge" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="Middlewares"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="Middlewares"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -174,7 +179,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="Src/redconf.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 					</sourceEntries>
 				</configuration>

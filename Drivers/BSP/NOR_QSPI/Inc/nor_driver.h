@@ -24,7 +24,7 @@
 #define N25_SUBSECTOR_SIZE                   4096
 #define N25_SUBSECTOR_COUNT                  4096
 #define N25_SECTOR_SIZE                      65536
-#define N25_SECTOR_COUNT                     64
+#define N25_SECTOR_COUNT                     256
 #define N25_MEMORY_SIZE                      N25_SUBSECTOR_COUNT * N25_SUBSECTOR_SIZE
 #define N25_BASE_ADDR                        0x000000
 #define N25_HIGH_ADDR                        0xFFFFFF
@@ -36,7 +36,7 @@
 
 /* Driver block and sector size matched with phy flash memory block and size*/
 #define DRIVER_BLOCK_SIZE                    N25_SECTOR_SIZE
-#define DRIVER_BLOCK_COUNT                   (N25_SECTOR_COUNT - 1)
+#define DRIVER_BLOCK_COUNT                   N25_SECTOR_COUNT - 1
 #define DRIVER_BASE_OFFSET_MEM               0x90000000
 #define DRIVER_LOWER_ADDRESS_FLASH_MEMORY    DRIVER_BASE_OFFSET_MEM + N25_BASE_ADDR
 #define DRIVER_HIGHER_ADDRESS_FLASH_MEMORY   DRIVER_BASE_OFFSET_MEM + N25_HIGH_ADDR
@@ -129,6 +129,7 @@
  * Exported driver function prototypes
  */
 UINT flash_driver_init(LX_NOR_FLASH *instance);
+UINT flash_driver_deinit(void);
 UINT _driver_nor_flash_bulk_erase(void);
 
 #endif /* INC_NOR_DRIVER_H_ */
