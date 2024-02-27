@@ -11,6 +11,7 @@
 #include "nor_driver.h"
 
 #include "lx_api.h"
+#include "block_test.h"
 
 #include <redfs.h>
 #include <redposix.h>
@@ -36,6 +37,10 @@ int main(void)
     MX_GPIO_Init();
     MX_USART2_UART_Init();
 
+//    HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+//    HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+
+
     GPIO_InitTypeDef joy_select =
     {
             .Mode       = GPIO_MODE_INPUT,
@@ -49,18 +54,58 @@ int main(void)
     /* Try to mount*/
     if (HAL_GPIO_ReadPin(JOY_SEL_GPIO_Port, JOY_SEL_Pin) == GPIO_PIN_SET)
     {
-        int32_t ret = red_init();
-        ret = red_mount("SPIF:");
-
-        if (ret != 0)
-        {
-            ret = red_format("SPIF:");
-        }
-
-        ret = red_mount("SPIF:");
-
-        __NOP();
+      while(1);
     }
+
+    int32_t ret = red_init();
+    ret = red_mount("SPIF:");
+
+    if (ret != 0)
+    {
+        ret = red_format("SPIF:");
+        ret = red_mount("SPIF:");
+    }
+
+    /* Открываем тестовый файл */
+    int32_t fdes = red_open("SPIF:/file.txt", RED_O_CREAT | RED_O_RDWR);
+
+    /* Счетчик записанных байт */
+    int32_t cnt;
+
+    /* Начальное время */
+    uint32_t start_time = HAL_GetTick();
+
+    for (uint32_t bk_cnt = 0; bk_cnt < 1000; bk_cnt++)
+    {
+        /* Циклически фигачим данные в файл до размера 1000 блоков*/
+        cnt = red_write(fdes, &data_pattern[0], 512);
+
+        if (cnt < 0) break;
+    }
+
+    // Считаем время
+    uint32_t stop_time = HAL_GetTick() - start_time;
+
+    if (cnt < 0)
+    {
+        /* Отказ !*/
+        HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+        while(1);
+    }
+    else
+    {
+        /* Все четко! */
+        HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+    }
+
+    // Фигачим транзакцию
+    red_transact("SPIF:");
+
+    __NOP();
+
+    HAL_Delay(5000);
+
+    NVIC_SystemReset();
 
     //    MX_USB_DEVICE_Init();   // USB stack initialize
 

@@ -18,8 +18,9 @@ QSPI_HandleTypeDef QSPIHandle;
 UCHAR __IO TxCplt, RxCplt, ErrCblk = 0;
 
 // ULONG size aligned buffer for driver sector access
-__attribute__((aligned(4))) ULONG sector_buffer[LX_NOR_SECTOR_SIZE] = {0};
-__attribute__((aligned(4))) ULONG verify_sector_buffer[LX_NOR_SECTOR_SIZE] = {0};
+ULONG sector_buffer[LX_NOR_SECTOR_SIZE] __attribute__((aligned(4))) = {0};
+ULONG verify_sector_buffer[LX_NOR_SECTOR_SIZE] __attribute__((aligned(4))) = {0};
+
 
 
 /* Driver auxiliary functions*/
@@ -424,7 +425,7 @@ UINT _driver_qspi_init()
     QSPIHandle.Instance = QUADSPI;
     HAL_QSPI_DeInit(&QSPIHandle);
 
-    QSPIHandle.Init.ClockPrescaler = 1;
+    QSPIHandle.Init.ClockPrescaler = 0;
     QSPIHandle.Init.FifoThreshold = 1;
     QSPIHandle.Init.SampleShifting = QSPI_SAMPLE_SHIFTING_HALFCYCLE;
     QSPIHandle.Init.FlashSize = QSPI_FLASH_SIZE;
@@ -704,16 +705,19 @@ UINT compare_buffers(uint8_t *dst, uint8_t *src, uint32_t size)
 
 void HAL_QSPI_RxCpltCallback(QSPI_HandleTypeDef *hqspi)
 {
+    (void)hqspi;
     RxCplt = 1;
 }
 
 void HAL_QSPI_TxCpltCallback(QSPI_HandleTypeDef *hqspi)
 {
+    (void)hqspi;
     TxCplt = 1;
 }
 
 void HAL_QSPI_ErrorCallback(QSPI_HandleTypeDef *hqspi)
 {
+    (void)hqspi;
     ErrCblk = 1;
 }
 

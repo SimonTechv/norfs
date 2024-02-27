@@ -40,7 +40,7 @@ typedef enum
 /************************************
  * EXPORTED VARIABLES
  ************************************/
-extern __attribute__((aligned(4))) const uint8_t data_pattern[512];
+extern const uint8_t data_pattern[512] __attribute__((aligned(4))) ;
 /************************************
  * GLOBAL FUNCTION PROTOTYPES
  ************************************/

@@ -38,7 +38,7 @@
 LX_NOR_FLASH nor_mem_desc = {0};
 
 /* Aligned buffer (for unaligned buffer writing/reading) (uint32_t) */
-__attribute__((aligned(4))) ULONG ulBuffer[LX_NOR_SECTOR_SIZE] = {0};
+ULONG ulBuffer[LX_NOR_SECTOR_SIZE] __attribute__((aligned(4))) = {0};
 
 /* Low level init status */
 enum {LX_NOINIT, LX_INIT, LX_INITERR} ini_sts = LX_NOINIT;

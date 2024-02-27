@@ -33,7 +33,7 @@
  ************************************/
 
 // Constant random 512 bytes buffer (for writing)
-__attribute__((aligned(4))) const uint8_t data_pattern[512] =
+const uint8_t data_pattern[512] __attribute__((aligned(4))) =
 {
         71,17,88,95,89,65,68,53,55,22,44,37,69,23,45,71,
         23,27,86,50,66,23,70,17,95,50,58,71,60,89,96,57,
