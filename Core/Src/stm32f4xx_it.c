@@ -20,6 +20,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_it.h"
+#include "joy_msp.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -58,9 +60,6 @@
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 extern QSPI_HandleTypeDef QSPIHandle;
 
-/* USER CODE BEGIN EV */
-
-/* USER CODE END EV */
 
 /******************************************************************************/
 /*           Cortex-M4 Processor Interruption and Exception Handlers          */
@@ -200,7 +199,15 @@ void SysTick_Handler(void)
 /* please refer to the startup file (startup_stm32f4xx.s).                    */
 /******************************************************************************/
 
-/* USER CODE BEGIN 1 */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    /* Update IRQ source TIM1 leads to calling button processing routine */
+    if (htim->Instance == TIM1)
+    {
+        JOY_ProcessingRoutine();
+    }
+}
+
 /**
   * @brief This function handles USB On The Go FS global interrupt.
   */
@@ -233,6 +240,15 @@ void QUADSPI_IRQHandler(void)
 void QSPI_DMA_IRQ_HANDLER(void)
 {
   HAL_DMA_IRQHandler(QSPIHandle.hdma);
+}
+
+/**
+ * @brief Keyboard IRQ Handler
+ *
+ */
+void JOY_KBRD_IRQ_HANDLER(void)
+{
+    HAL_TIM_IRQHandler(&htim1);
 }
 
 /* USER CODE END 1 */

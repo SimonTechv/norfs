@@ -70,6 +70,7 @@ void Error_Handler(void);
 #define QSPI_DMA_CHANNEL           DMA_CHANNEL_3
 #define QSPI_DMA_IRQ               DMA2_Stream7_IRQn
 #define QSPI_DMA_IRQ_HANDLER       DMA2_Stream7_IRQHandler
+#define JOY_KBRD_IRQ_HANDLER       TIM1_UP_TIM10_IRQHandler
 
 #ifdef __cplusplus
 }

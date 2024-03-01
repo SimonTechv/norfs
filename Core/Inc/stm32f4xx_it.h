@@ -57,6 +57,8 @@ void PendSV_Handler(void);
 void SysTick_Handler(void);
 void QUADSPI_IRQHandler(void);
 void QSPI_DMA_IRQ_HANDLER(void);
+void JOY_KBRD_IRQ_HANDLER(void);
+
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */
