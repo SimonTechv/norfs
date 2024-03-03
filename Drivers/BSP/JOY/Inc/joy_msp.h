@@ -31,6 +31,7 @@ extern "C" {
 /************************************
  * TYPEDEFS
  ************************************/
+
 typedef struct
 {
     uint8_t up;
@@ -39,11 +40,15 @@ typedef struct
     uint8_t left;
     uint8_t sel;
 } joystick;
+
+
 /************************************
  * EXPORTED VARIABLES
  ************************************/
+
 extern TIM_HandleTypeDef htim1;
 extern __IO joystick joy;
+
 
 /************************************
  * GLOBAL FUNCTION PROTOTYPES

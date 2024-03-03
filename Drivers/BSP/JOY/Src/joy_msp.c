@@ -13,7 +13,7 @@
 #include "joy_msp.h"
 #include "stm32f4xx.h"
 #include "gpio_defs.h"
-#include "button.h"
+#include "multi_button.h"
 
 /************************************
  * EXTERN VARIABLES
@@ -31,73 +31,42 @@
  * STATIC VARIABLES
  ************************************/
 
+enum joy_keys {
+    JOY_UP,
+    JOY_DOWN,
+    JOY_LEFT,
+    JOY_RIGHT,
+    JOY_SEL
+};
+
+
+/* Button handles */
+static Button btn_up;
+static Button btn_down;
+static Button btn_left;
+static Button btn_right;
+static Button btn_select;
+
+
 /************************************
  * STATIC FUNCTION PROTOTYPES
  ************************************/
-static void JoyLongRelease(uint8_t btnCode);
-static void JoyLongPress(uint8_t btnCode);
-static void JoyShortRelease(uint8_t btnCode);
 
+static void JOY_StructureInit(void);
+static uint8_t JOY_PollGPIO(uint8_t);
 
 /************************************
  * GLOBAL VARIABLES
  ************************************/
 TIM_HandleTypeDef htim1;
 
-/* Joytick keys define port&pins */
-btn_instance_t jst_keys[5] =
-{
-        {
-                .port = JOY_DOWN_GPIO_Port,
-                .pin  = JOY_DOWN_Pin,
-        },
-        {
-                .port = JOY_UP_GPIO_Port,
-                .pin  = JOY_UP_Pin
-        },
-        {
-                .port = JOY_LEFT_GPIO_Port,
-                .pin  = JOY_LEFT_Pin
-        },
-        {
-                .port = JOY_RIGHT_GPIO_Port,
-                .pin  = JOY_RIGHT_Pin
-        },
-        {
-                .port = JOY_SEL_GPIO_Port,
-                .pin  = JOY_SEL_Pin
-        }
-};
-
-/* Press button module init parameters */
-btn_init_t jst_params =
-{
-        /* Parameters button processing */
-        .instance          = &jst_keys[0],
-        .debounce_time_ms  = DEBOUNCE_TIME,
-        .long_press_def_ms = LONG_PRESS_MS,
-        .process_time_ms   = PROC_TIME_PERIOD,
-
-        /* Processing callbacks */
-        .port_read     = &HAL_GPIO_ReadPin,
-        .short_release = &JoyShortRelease,
-        .long_press    = &JoyLongPress,
-        .long_release  = &JoyLongRelease
-};
-
-
 /* KBRD CONTROL STRUCT */
 __IO joystick joy = {0,0,0,0,0};
 
 
 /************************************
- * STATIC FUNCTIONS
- ************************************/
-
-/************************************
  * GLOBAL FUNCTIONS
  ************************************/
-
 
 /**
  * @brief Initialize button processing module
@@ -150,10 +119,7 @@ int8_t JOY_ProcessingInit(void)
     HAL_NVIC_EnableIRQ(TIM1_UP_TIM10_IRQn);
 
     /* Initialize button module */
-    if (Button_Init(&jst_params, jst_keys, JOY_BTN_CNT) != 0)
-    {
-        return -1;
-    }
+    JOY_StructureInit();
 
     /* Start keboard polling */
     if(HAL_TIM_Base_Start_IT(&htim1) != HAL_OK)
@@ -167,56 +133,39 @@ int8_t JOY_ProcessingInit(void)
 }
 
 
+/************************************
+ * STATIC FUNCTIONS
+ ************************************/
+
+/**
+ * @brief Polling gpio level
+ *
+ */
+static uint8_t JOY_PollGPIO(uint8_t)
+{
+
+}
+
+/**
+ * @brief Initialize button processing module
+ *
+ */
+static void JOY_StructureInit(void)
+{
+    /* Configure button UP */
+    button_init(&btn_up, &JOY_PollGPIO, GPIO_PIN_SET, JOY_UP);
+    button_init(&btn_down, &JOY_PollGPIO, GPIO_PIN_SET, JOY_DOWN);
+    button_init(&btn_down, &JOY_PollGPIO, GPIO_PIN_SET, JOY_DOWN);
+
+
+}
+
+
 /******************************************************************************/
 /*                         Button processing callbacks                        */
 /******************************************************************************/
 
-/**
- * @brief
- *
- * @param btnCode
- */
-static void JoyShortRelease(uint8_t btnCode)
-{
-    switch (btnCode)
-    {
-    case 0:
-        joy.down   = SET;
-        break;
-    case 1:
-        joy.up     = SET;
-        break;
-    case 2:
-        joy.left   = SET;
-        break;
-    case 3:
-        joy.right  = SET;
-        break;
-    case 4:
-        joy.sel    = SET;
-        break;
-    };
-}
 
-/**
- * @brief
- *
- * @param btnCode
- */
-static void JoyLongPress(uint8_t btnCode)
-{
-    __NOP();
-}
-
-/**
- * @brief
- *
- * @param btnCode
- */
-static void JoyLongRelease(uint8_t btnCode)
-{
-    __NOP();
-}
 
 
 /******************************************************************************/
@@ -231,6 +180,6 @@ static void JoyLongRelease(uint8_t btnCode)
 void JOY_ProcessingRoutine(void)
 {
     /* Perform button polling */
-    Button_Update();
+    button_ticks();
 }
 
